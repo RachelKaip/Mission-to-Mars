@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+from email.errors import HeaderMissingRequiredValue
 from splinter import Browser
 from bs4 import BeautifulSoup as soup
 from webdriver_manager.chrome import ChromeDriverManager
 import pandas as pd
 import datetime as dt
+import time
 
 def scrape_all():
     #initiate headless driver for deployment 
@@ -20,9 +22,9 @@ def scrape_all():
       "news_paragraph": news_paragraph,
       "featured_image": featured_image(browser),
       "facts": mars_facts(),
-      "last_modified": dt.datetime.now()
-    }
-
+      "last_modified": dt.datetime.now(), 
+      "hemisphere_img_urls": hemisphere_info()}
+    print(data)
     # Stop webdriver and return data
     browser.quit()
     return data
@@ -31,6 +33,7 @@ def mars_news(browser):
 
     # Visit the mars nasa news site
     url = 'https://redplanetscience.com'
+    print(f'visiting{url}')
     browser.visit(url)
 
     # Optional delay for loading the page
@@ -57,6 +60,7 @@ def mars_news(browser):
 def featured_image(browser):
     # Visit URL
     url = 'https://spaceimages-mars.com'
+    print(f'visiting{url}')
     browser.visit(url)
 
     # Find and click the full image button
@@ -91,9 +95,49 @@ def mars_facts():
     #Assigning columns to the data frame
     df.columns=['description', 'Mars', 'Earth']
     df.set_index('description', inplace=True)
-    
+    table = df.to_html(classes='table table-striped')
+    print(table)
     #convert dataframe to html format, add boostrap
-    return df.to_html()
+    return table
+
+# CHALLENGE CODE
+# Hemisphere data
+
+def init_browser():
+    executable_path = {'executable_path': ChromeDriverManager().install()}
+    return Browser('chrome', **executable_path, headless=True)
+
+def hemisphere_info():
+    browser= init_browser()
+    url = 'https://marshemispheres.com/'
+    print(f'visiting{url}')
+    browser.visit(url)
+    hemisphere_image_urls= []
+
+    time.sleep(1)
+
+    for i in range(4):
+        links = browser.find_by_css("a.product-item img")[i].click()
+
+        html=browser.html
+        bs = soup(html, "html.parser")
+
+        title= bs.find('h2', class_= 'title').get_text()
+        print(title)
+        img_url= bs.find('a', text= 'Sample').get('href')
+        full_url = url + img_url
+        print(full_url)
+
+        hemispheres = {'title':title, "img_url": full_url}
+        hemisphere_image_urls.append(hemispheres)
+        browser.back()
+
+    print(hemisphere_image_urls)
+    
+    browser.quit()
+    
+    return hemisphere_image_urls
+
 
 if __name__ == "__main__":
     # If running as script, print scraped data
